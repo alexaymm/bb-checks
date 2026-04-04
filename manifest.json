@@ -1,0 +1,40 @@
+{
+  "name": "finctrl — control financiero",
+  "short_name": "finctrl",
+  "description": "Registro de gastos e ingresos con reportes automáticos",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1D9E75",
+  "background_color": "#ffffff",
+  "lang": "es-MX",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar gasto",
+      "short_name": "Gasto",
+      "url": "/?tab=registro",
+      "description": "Registrar nuevo gasto rápidamente"
+    },
+    {
+      "name": "Ver reportes",
+      "short_name": "Reportes",
+      "url": "/?tab=reportes",
+      "description": "Ver reportes financieros"
+    }
+  ],
+  "categories": ["finance", "productivity"]
+}
