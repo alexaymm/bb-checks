@@ -209,11 +209,74 @@
     .install-text { font-size: 12px; color: #0C447C; flex: 1; line-height: 1.5; }
     .install-btn { padding: 6px 12px; font-family: var(--font-mono); font-size: 11px; border: none; border-radius: 7px; background: var(--blue); color: #fff; cursor: pointer; flex-shrink: 0; }
     .install-close { background: none; border: none; cursor: pointer; color: #0C447C; font-size: 16px; padding: 0; }
+
+    .modal-backdrop { display: none; min-height: 100vh; background: rgba(0,0,0,0.45); align-items: flex-end; justify-content: center; padding: 0; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--c-bg); border-radius: 18px 18px 0 0; padding: 1.25rem; width: 100%; max-width: 720px; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .modal-title { font-size: 15px; font-weight: 500; color: var(--c-text); }
+    .modal-close { background: none; border: none; font-size: 22px; color: var(--c-hint); cursor: pointer; padding: 0; line-height: 1; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-save { flex: 2; padding: 12px; font-family: var(--font-mono); font-size: 13px; font-weight: 500; border: none; border-radius: 10px; background: var(--teal); color: #fff; cursor: pointer; }
+    .modal-delete { flex: 1; padding: 12px; font-family: var(--font-mono); font-size: 13px; border: 0.5px solid var(--red); border-radius: 10px; background: var(--red-light); color: var(--red); cursor: pointer; }
+    .tx-edit { background: none; border: none; color: var(--c-border2); cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; }
+    .tx-edit:active { color: var(--teal); }
   </style>
 </head>
 <body>
 
 <div class="toast" id="toast"></div>
+
+<!-- Modal edición -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">editar movimiento</div>
+      <button class="modal-close" onclick="closeModalDirect()">×</button>
+    </div>
+    <div class="type-toggle" style="margin-bottom:12px;">
+      <button class="type-btn" id="e-btn-gasto" onclick="setEditType('gasto')">↓ gasto</button>
+      <button class="type-btn" id="e-btn-ingreso" onclick="setEditType('ingreso')">↑ ingreso</button>
+    </div>
+    <div class="form-row">
+      <div class="fgroup">
+        <label>monto (MXN)</label>
+        <input type="number" id="e-monto" step="0.01" min="0" inputmode="decimal">
+      </div>
+      <div class="fgroup">
+        <label>fecha</label>
+        <input type="date" id="e-fecha">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fgroup">
+        <label>categoría</label>
+        <select id="e-cat"></select>
+      </div>
+      <div class="fgroup">
+        <label>cuenta</label>
+        <select id="e-cuenta">
+          <option>efectivo</option>
+          <option>débito</option>
+          <option>crédito</option>
+          <option>transferencia</option>
+          <option>inversión</option>
+          <option>despensa</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row full">
+      <div class="fgroup">
+        <label>descripción</label>
+        <input type="text" id="e-desc">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-save" onclick="saveEdit()">guardar cambios</button>
+      <button class="modal-delete" onclick="confirmDelete()">eliminar</button>
+    </div>
+  </div>
+</div>
 
 <div class="app-shell">
   <div class="app-header">
@@ -464,12 +527,87 @@
     toast(currentType === 'gasto' ? `↓ ${fmt(monto)} registrado` : `↑ ${fmt(monto)} registrado`);
   }
 
+  let editingId = null;
+
+  function openEdit(id) {
+    const tx = data.find(t => t.id === id);
+    if (!tx) return;
+    editingId = id;
+    setEditType(tx.tipo);
+    document.getElementById('e-monto').value = tx.monto;
+    document.getElementById('e-fecha').value  = tx.fecha;
+    document.getElementById('e-desc').value   = tx.desc;
+    const catList = tx.tipo === 'ingreso' ? ING_CATS : cats;
+    const eCat = document.getElementById('e-cat');
+    eCat.innerHTML = catList.map(c => `<option${c===tx.cat?' selected':''}>${c}</option>`).join('');
+    const eCuenta = document.getElementById('e-cuenta');
+    [...eCuenta.options].forEach(o => o.selected = o.value === tx.cuenta);
+    document.getElementById('modal-backdrop').classList.add('open');
+  }
+
+  function setEditType(t) {
+    document.getElementById('e-btn-gasto').className  = 'type-btn' + (t==='gasto'   ? ' active-gasto'   : '');
+    document.getElementById('e-btn-ingreso').className= 'type-btn' + (t==='ingreso' ? ' active-ingreso' : '');
+    const catList = t === 'ingreso' ? ING_CATS : cats;
+    const eCat = document.getElementById('e-cat');
+    const prev = eCat.value;
+    eCat.innerHTML = catList.map(c => `<option${c===prev?' selected':''}>${c}</option>`).join('');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modal-backdrop')) closeModalDirect();
+  }
+
+  function closeModalDirect() {
+    document.getElementById('modal-backdrop').classList.remove('open');
+    editingId = null;
+  }
+
+  function saveEdit() {
+    if (!editingId) return;
+    const idx = data.findIndex(t => t.id === editingId);
+    if (idx === -1) return;
+    const tipo  = document.getElementById('e-btn-gasto').classList.contains('active-gasto') ? 'gasto' : 'ingreso';
+    const monto = parseFloat(document.getElementById('e-monto').value);
+    const fecha = document.getElementById('e-fecha').value;
+    const cat   = document.getElementById('e-cat').value;
+    const cuenta= document.getElementById('e-cuenta').value;
+    const desc  = document.getElementById('e-desc').value.trim() || cat;
+    if (!monto || !fecha) { toast('completa monto y fecha'); return; }
+    const updated = { ...data[idx], tipo, monto, fecha, cat, cuenta, desc };
+    data[idx] = updated;
+    data.sort((a,b) => b.fecha.localeCompare(a.fecha));
+    persist();
+    updateMetrics();
+    renderTxList();
+    renderReportes();
+    closeModalDirect();
+    syncEditToSheets(updated);
+    toast('movimiento actualizado');
+  }
+
+  function confirmDelete() {
+    if (!editingId) return;
+    if (!confirm('¿Eliminar este movimiento?')) return;
+    const tx = data.find(t => t.id === editingId);
+    data = data.filter(t => t.id !== editingId);
+    persist();
+    updateMetrics();
+    renderTxList();
+    renderReportes();
+    closeModalDirect();
+    if (tx) deleteFromSheets(tx.id);
+    toast('movimiento eliminado');
+  }
+
   function deleteTx(id) {
+    const tx = data.find(t => t.id === id);
     data = data.filter(t => t.id !== id);
     persist();
     updateMetrics();
     renderTxList();
     renderReportes();
+    if (tx) deleteFromSheets(id);
     toast('movimiento eliminado');
   }
 
@@ -526,12 +664,12 @@
       const col = CAT_COLORS[Math.max(ci, 0)];
       return `<div class="tx-item">
         <div class="tx-dot" style="background:${col}"></div>
-        <div class="tx-info">
+        <div class="tx-info" onclick="openEdit(${t.id})" style="cursor:pointer;">
           <div class="tx-desc">${esc(t.desc)}</div>
           <div class="tx-meta">${t.fecha} · ${t.cat} · ${t.cuenta}</div>
         </div>
         <div class="tx-amount ${t.tipo==='gasto'?'neg':'pos'}">${t.tipo==='gasto'?'−':'+'}${fmt(t.monto)}</div>
-        <button class="tx-del" onclick="deleteTx(${t.id})">×</button>
+        <button class="tx-edit" onclick="openEdit(${t.id})">✎</button>
       </div>`;
     }).join('');
   }
@@ -710,6 +848,30 @@
       setSyncDot('error');
       toast('error al sincronizar');
     }
+  }
+
+  async function syncEditToSheets(tx) {
+    if (!sheetsUrl) return;
+    try {
+      await fetch(sheetsUrl + '?action=update', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(tx)
+      });
+    } catch(e) {}
+  }
+
+  async function deleteFromSheets(id) {
+    if (!sheetsUrl) return;
+    try {
+      await fetch(sheetsUrl + '?action=delete', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ id: String(id) })
+      });
+    } catch(e) {}
   }
 
   async function syncFromSheets() {
