@@ -335,6 +335,9 @@
           <button onclick="saveSheets()">guardar</button>
         </div>
       </div>
+      <button id="sync-pull-btn" onclick="syncFromSheets()" style="width:100%;margin-top:8px;padding:11px;font-family:var(--font-mono);font-size:13px;font-weight:500;border:0.5px solid var(--teal);border-radius:10px;background:var(--teal-light);color:var(--teal-dark);cursor:pointer;transition:opacity 0.15s;">
+        ↓ traer datos desde Google Sheets
+      </button>
 
       <div class="slabel">categorías de gastos</div>
       <div id="cat-chips" class="cat-chips"></div>
@@ -709,6 +712,42 @@
     }
   }
 
+  async function syncFromSheets() {
+    if (!sheetsUrl) { toast('primero guarda la URL del Apps Script'); return; }
+    const btn = document.getElementById('sync-pull-btn');
+    btn.textContent = '↓ sincronizando...';
+    btn.style.opacity = '0.6';
+    btn.disabled = true;
+    try {
+      const url = sheetsUrl + '?action=getAll';
+      const res = await fetch(url);
+      const json = await res.json();
+      if (!json.data || !Array.isArray(json.data)) throw new Error('respuesta inesperada');
+      let added = 0;
+      json.data.forEach(tx => {
+        if (!data.find(t => String(t.id) === String(tx.id))) {
+          data.push(tx);
+          added++;
+        }
+      });
+      data.sort((a,b) => b.fecha.localeCompare(a.fecha));
+      persist();
+      updateMetrics();
+      renderTxList();
+      renderMonthFilter();
+      renderReportes();
+      toast(added > 0 ? `${added} movimientos nuevos traídos` : 'ya estás al día');
+      setSyncDot('synced');
+    } catch(e) {
+      toast('error al traer datos — verifica la URL');
+      setSyncDot('error');
+    } finally {
+      btn.textContent = '↓ traer datos desde Google Sheets';
+      btn.style.opacity = '1';
+      btn.disabled = false;
+    }
+  }
+
   /* ---- Export / Import ---- */
   function exportCSV() {
     const rows = [['id','tipo','monto','fecha','categoria','cuenta','descripcion']];
@@ -802,7 +841,7 @@
   }
 
   /* ---- Service Worker ---- */
-  if ('serviceWorker' in navigator)  {
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
 
