@@ -531,7 +531,7 @@
   let editingId = null;
 
   function openEdit(id) {
-    const tx = data.find(t => t.id === id);
+    const tx = data.find(t => String(t.id) === String(id));
     if (!tx) return;
     editingId = id;
     setEditType(tx.tipo);
@@ -591,7 +591,7 @@
     if (!editingId) return;
     if (!confirm('¿Eliminar este movimiento?')) return;
     const tx = data.find(t => t.id === editingId);
-    data = data.filter(t => t.id !== editingId);
+    data = data.filter(t => String(t.id) !== String(editingId));
     persist();
     updateMetrics();
     renderTxList();
@@ -602,8 +602,8 @@
   }
 
   function deleteTx(id) {
-    const tx = data.find(t => t.id === id);
-    data = data.filter(t => t.id !== id);
+    const tx = data.find(t => String(t.id) === String(id));
+    data = data.filter(t => String(t.id) !== String(id));
     persist();
     updateMetrics();
     renderTxList();
