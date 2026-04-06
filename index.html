@@ -536,7 +536,7 @@
     editingId = id;
     setEditType(tx.tipo);
     document.getElementById('e-monto').value = tx.monto;
-    document.getElementById('e-fecha').value  = tx.fecha;
+    document.getElementById('e-fecha').value = String(tx.fecha).slice(0, 10);
     document.getElementById('e-desc').value   = tx.desc;
     const catList = tx.tipo === 'ingreso' ? ING_CATS : cats;
     const eCat = document.getElementById('e-cat');
