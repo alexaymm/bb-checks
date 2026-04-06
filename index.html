@@ -565,6 +565,7 @@
   }
 
   function saveEdit() {
+    console.log('editingId:', editingId, 'monto:', document.getElementById('e-monto').value);
     if (!editingId) return;
     const idx = data.findIndex(t => t.id === editingId);
     if (idx === -1) return;
